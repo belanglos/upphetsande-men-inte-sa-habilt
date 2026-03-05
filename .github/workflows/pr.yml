@@ -1,0 +1,44 @@
+name: test
+
+on:
+  pull_request:
+    branches: ['*']
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npx vitest run --coverage
+
+      - run: npx tsc --noEmit
+
+      - name: Post coverage summary
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let body = '## Test Coverage\n\nTests and type checking completed.';
+            try {
+              const coverage = fs.readFileSync('coverage/coverage-summary.json', 'utf8');
+              const data = JSON.parse(coverage);
+              const total = data.total;
+              body = `## Test Coverage\n\n| Category | Coverage |\n|----------|----------|\n| Statements | ${total.statements.pct}% |\n| Branches | ${total.branches.pct}% |\n| Functions | ${total.functions.pct}% |\n| Lines | ${total.lines.pct}% |`;
+            } catch (e) {
+              // Coverage file may not exist
+            }
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body
+            });
