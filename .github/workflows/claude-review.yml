@@ -1,0 +1,36 @@
+name: claude-review
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request:
+    types: [opened, synchronize]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+  actions: read
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    if: |
+      (github.event_name == 'pull_request') ||
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude'))
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          prompt: |
+            Review this PR diff for:
+            1. Test quality - are tests meaningful and comprehensive?
+            2. Missing tests - are there untested code paths?
+            3. Physics correctness - is Matter.js used correctly?
+            4. Svelte best practices - proper use of Svelte 5 runes, reactivity, component patterns
+            Post specific, actionable review comments on the PR.
